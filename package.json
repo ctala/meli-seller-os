@@ -1,0 +1,17 @@
+{
+  "name": "meli-seller-os",
+  "version": "0.1.0",
+  "description": "Synthetic, receipt-bound Mercado Libre seller operations Worker",
+  "license": "MIT",
+  "author": "ctala",
+  "repository": {"type":"git","url":"https://github.com/ctala/meli-seller-os.git"},
+  "homepage": "https://github.com/ctala/meli-seller-os#readme",
+  "bugs": {"url":"https://github.com/ctala/meli-seller-os/issues"},
+  "type": "module",
+  "main": "src/index.ts",
+  "files": ["src", "migrations", "docs", "README.md", "LICENSE", "wrangler.toml"],
+  "publishConfig": {"access":"public"},
+  "engines": {"node": ">=20.0.0", "npm": ">=10.0.0"},
+  "scripts": {"test":"vitest run","check":"tsc --noEmit && npm run scan","scan":"node scripts/public-scan.mjs","openspec:validate":"openspec validate v0.1-meli-seller-os --strict","dry-run":"node scripts/predeploy-validate.mjs && wrangler deploy --dry-run","predeploy":"node scripts/predeploy-validate.mjs","migrations:verify":"node scripts/verify-migrations.mjs"},
+  "devDependencies": {"@cloudflare/workers-types":"5.20260917.1","@fission-ai/openspec":"1.13.0","@types/node":"26.1.0","typescript":"5.9.2","vitest":"5.0.1","wrangler":"4.134.0"}
+}

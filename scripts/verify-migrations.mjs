@@ -1,0 +1,15 @@
+import {DatabaseSync} from 'node:sqlite';
+import fs from 'node:fs';
+import path from 'node:path';
+const db=new DatabaseSync(':memory:');
+const dir=path.resolve('migrations');
+const files=fs.readdirSync(dir).filter(x=>/^\d+_.*\.sql$/.test(x)).sort();
+for(const file of files) db.exec(fs.readFileSync(path.join(dir,file),'utf8'));
+for(const file of files) db.exec(fs.readFileSync(path.join(dir,file),'utf8'));
+const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(x=>x.name);
+for(const required of ['products','qa_seen','qa_receipts','qa_progress','patch_receipts','patch_progress','moderation_snapshots','moderation_events']) if(!tables.includes(required)) throw new Error(`missing table ${required}`);
+db.exec("INSERT INTO qa_seen(product_key,question_id,text_hash,classification,created_at) VALUES ('p','q','d','f',1)");
+let unique=false;try{db.exec("INSERT INTO qa_seen(product_key,question_id,text_hash,classification,created_at) VALUES ('p','q','d2','f',2)")}catch{unique=true}if(!unique)throw new Error('qa_seen unique constraint missing');
+db.exec("INSERT INTO moderation_events(product_key,digest,created_at) VALUES ('p','d',1)");
+unique=false;try{db.exec("INSERT INTO moderation_events(product_key,digest,created_at) VALUES ('p','d',2)")}catch{unique=true}if(!unique)throw new Error('moderation event unique constraint missing');
+console.log(`migration fresh + raw reapplication passed: ${files.length} ledger entries`);

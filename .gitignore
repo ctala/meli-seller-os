@@ -1,0 +1,6 @@
+.env.*
+.dev.vars.*
+!.env.example
+node_modules/
+.wrangler/
+coverage/
