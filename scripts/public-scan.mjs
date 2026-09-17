@@ -11,21 +11,22 @@ const rules=[
   [/[A-Za-z0-9._%+-]+@(?!example\.test\b)[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,'email'],
   [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,'private_key'],
   [/receipt_mac|"mac"\s*:\s*"[a-f0-9]{32,}/i,'receipt'],
-  [/https?:\/\/(?!example\.test\b|api\.mercadolibre\.com\b)[^\s'"`]+/i,'real_domain'],
+  [/https?:\/\/(?![A-Za-z0-9.-]+\.test\b|registry\.npmjs\.org\b|api\.mercadolibre\.com\b|developers\.mercadolibre\.com\.ar\b|github\.com\/ctala\/meli-seller-os(?:\b|\/))[^\s'"`]+/i,'real_domain'],
   [/\bCristian\b/i,'personal_name']
 ];
 
 function command(command,args){return execFileSync(command,args,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe']});}
 function exempt(file,rule,content){return file==='package.json'&&(
   rule==='personal_name'||(rule==='real_domain'&&/github\.com\/ctala\/meli-seller-os/.test(content))
-);}
+ )||file.endsWith('scripts/public-scan.mjs')||file.endsWith('tests/safety.test.ts');}
 function scanText(file,content,bad){
+  if(file.endsWith('package-lock.json')||file.endsWith('tests/safety.test.ts'))return;
   for(const [re,name] of rules)if(re.test(content)&&!exempt(file,name,content))bad.push(`${file}:${name}`);
   if(/\.[cm]?[jt]s$/.test(file)&&file!=='src/index.ts'&&(/POST\s+['"`]\/answers|method\s*:\s*['"]POST['"][\s\S]{0,100}\/answers/i.test(content)||/PUT\s+['"`]\/items\//i.test(content)))bad.push(`${file}:alternate_write`);
   if(/\.[cm]?[jt]s$/.test(file)&&/POST\s+(?:['"`])?\/items(?:['"`/]|$)/i.test(content))bad.push(`${file}:create_listing`);
 }
 function scanPath(file,bad){
-  if((file.startsWith('.env.')||file.startsWith('.dev.vars.'))&&file!=='.env.example')bad.push(`${file}:hidden_secret_file`);
+  if((file==='.env'||file==='.dev.vars'||file.startsWith('.env.')||file.startsWith('.dev.vars.'))&&file!=='.env.example')bad.push(`${file}:hidden_secret_file`);
 }
 function worktreeFiles(dir,files=[]){
   for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
@@ -36,18 +37,33 @@ function worktreeFiles(dir,files=[]){
   }
   return files;
 }
-function readSurfaceFile(file){
-  try{return fs.readFileSync(path.join(root,file),'utf8');}
-  catch{try{return command('git',['show',`:${file}`]);}catch{return null;}}
+function stagedFile(file){
+  try{return command('git',['show',`:${file}`]);}catch{return null;}
 }
 function scanRepositorySurface(bad){
   let indexed=[];
   try{indexed=command('git',['ls-files','--cached']).trim().split('\n').filter(Boolean);}catch{}
-  for(const file of new Set([...worktreeFiles(root),...indexed])){
+  for(const file of worktreeFiles(root)){
     scanPath(file,bad);
-    if(file==='scripts/public-scan.mjs'||file.startsWith('tests/')||file==='package-lock.json')continue;
-    const content=readSurfaceFile(file);
-    if(content!==null)scanText(file,content,bad);
+    const content=fs.readFileSync(path.join(root,file),'utf8');
+    scanText(`worktree:${file}`,content,bad);
+  }
+  for(const file of indexed){
+    scanPath(file,bad);
+    const content=stagedFile(file);
+    if(content!==null)scanText(`staged:${file}`,content,bad);
+  }
+}
+function scanReachableBlobs(bad){
+  let objects=[];
+  try{objects=command('git',['rev-list','--objects','--all']).split('\n').map(line=>{const [oid,...name]=line.split(' ');return {oid,path:name.join(' ')}}).filter(({oid})=>/^[0-9a-f]{40,64}$/.test(oid));}
+  catch{bad.push('git_rev_list:failed');return;}
+  for(const {oid,path:objectPath} of objects){
+    let type='';
+    try{type=command('git',['cat-file','-t',oid]).trim();}catch{bad.push(`git_cat_file:${oid}:failed`);continue;}
+    if(type!=='blob')continue;
+    try{scanText(`git-object:${oid}:${objectPath}`,command('git',['cat-file','blob',oid]),bad);}
+    catch{bad.push(`git_cat_file:${oid}:failed`);}
   }
 }
 function scanGitObjects(bad){
@@ -76,6 +92,7 @@ function scanPack(bad){
 
 const bad=[];
 scanRepositorySurface(bad);
+scanReachableBlobs(bad);
 scanGitObjects(bad);
 scanPack(bad);
 if(bad.length){console.error([...new Set(bad)].join('\n'));process.exit(1);}
