@@ -1,8 +1,19 @@
 # Quickstart
 
-1. Copy `.env.example` locally; never commit it. Values shown are synthetic.
-2. Apply `migrations/0001_initial.sql` to a fresh D1 database.
-3. Configure `INTERNAL_AUTH_TOKEN`, a base64url 32-byte `RECEIPT_ROOT_KEY`, and optionally `MELI_ACCESS_TOKEN`.
-4. Deploy only after `npm test`, `npm run check`, `npm run openspec:validate`, and `npm run dry-run` pass.
+The canonical setup, registry SQL/config snippets, API request contracts, release gates, and final `npx wrangler deploy` command live in the repository [README](../README.md#quickstart). This pointer prevents a second setup guide from drifting.
 
-Call `GET https://example.test/internal/products/demo_widget/moderation/poll` with `Authorization: Bearer <internal-token>`. The monitor performs only an item GET through the production adapter. No create-listing route exists.
+Apply every numbered migration in order through Wrangler's migration runner, rather than executing one raw file:
+
+```sh
+npx wrangler d1 migrations apply meli-seller-os --remote
+```
+
+This applies `0001_initial.sql`, then `0002_product_aliases_canonical.sql` to the selected D1 database. Use the matching environment/configuration; local and remote D1 databases are separate.
+
+Use the canonical clone URL:
+
+```sh
+git clone https://github.com/ctala/meli-seller-os.git
+```
+
+Repository examples remain synthetic-only. Private D1 and `PRODUCT_REGISTRY_JSON` runtime configuration may contain operator-authorized real seller/item IDs.

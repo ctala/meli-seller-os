@@ -1,3 +1,3 @@
-# v0.1 meli-seller-os
+# v0.1.1 reader-testing hardening
 
-Publish a safe synthetic seller operations Worker without listing creation.
+Clarify private runtime identity policy, canonical D1 aliases, bounded patch-digest semantics, request/error contracts, release verification language, and public-source scanning without changing the narrow marketplace write surface.

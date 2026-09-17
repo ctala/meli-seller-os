@@ -2,13 +2,17 @@
 
 ## ADDED Requirements
 
-### Requirement: Final audit hardening
-The system SHALL use normalized exact aliases, atomic D1 claims for question, patch, and moderation concurrency, and bounded fail-closed marketplace projections. Public configuration SHALL use a documented Wrangler template and reject placeholder database identifiers before deployment.
+### Requirement: Reader-testing hardening
+The system SHALL permit authorized real seller/item IDs only in private D1 or `PRODUCT_REGISTRY_JSON` configuration while repository/public artifacts remain synthetic-only. It SHALL use `product_aliases` as the sole exact D1 alias source, retain valid `config_json.aliases`, bind patches to the documented allowlisted item-state projection, validate every POST body before service calls, and publish coherent 400/404/409/502/503 mappings.
 
-#### Scenario: Concurrent observer
-- **WHEN** concurrent operations observe one logical event
-- **THEN** exactly one caller reports the durable change and any marketplace write is claimed once.
+#### Scenario: Invalid request body
+- **WHEN** a prepare/apply request has invalid JSON, `null`, an array, missing fields, or non-string fields
+- **THEN** the router SHALL return `400 {"error":"invalid_request"}` without calling the service.
 
-#### Scenario: Placeholder configuration
-- **WHEN** deployment configuration contains a placeholder D1 UUID
-- **THEN** predeploy validation SHALL reject it.
+#### Scenario: Deprecated aliases JSON
+- **WHEN** `products.aliases_json` disagrees with `product_aliases`
+- **THEN** runtime lookup SHALL use only the exact `product_aliases` mapping.
+
+#### Scenario: Projection-only digest
+- **WHEN** an item price/title/condition changes but `id`, `seller_id`, `status`, and `attributes` do not
+- **THEN** the patch projection digest SHALL not claim to detect that change.
